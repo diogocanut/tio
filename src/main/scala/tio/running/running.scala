@@ -1,8 +1,14 @@
 package tio.running
 
+import tio.TIO.{AsyncDoneCallback, AsyncTask}
 import tio.{TIO, TIOApp}
 
 import scala.util.control.NonFatal
+import scala.concurrent.duration._
+import scala.concurrent.duration.Duration
+import java.time.Instant
+import java.util.{Timer, TimerTask}
+import scala.util.Success
 
 object SequenceEffects extends TIOApp {
   def run = {
@@ -38,5 +44,43 @@ object FailAndRecover extends TIOApp {
     } yield ()).recover { case NonFatal(e) =>
       putStrLn(s"recovered from failure: ${e.getClass.getName}")
     }
+  }
+}
+
+object Foreach10k extends TIOApp {
+  def run = TIO.foreach(1 to 10000)(i => TIO.effect(println(i)))
+}
+
+object Clock {
+  // Use EffectAsync to implement a non-blocking "sleep"
+  private val timer = new Timer("TIO-Timer", /* isDaemon */ true)
+
+  def sleep[A](duration: Duration): TIO[Unit] =
+    TIO.effectAsync { onComplete: AsyncDoneCallback[Unit] =>
+      timer.schedule(
+        new TimerTask {
+          override def run(): Unit = onComplete(Success(()))
+        },
+        duration.toMillis
+      )
+    }
+}
+import Clock._
+
+object SleepExample extends TIOApp {
+  def run = {
+    for {
+      _ <- TIO.effect(
+        println(
+          s"[${Instant.now}] running first effect on ${Thread.currentThread.getName}"
+        )
+      )
+      _ <- sleep(2.seconds)
+      _ <- TIO.effect(
+        println(
+          s"[${Instant.now}] running second effect on ${Thread.currentThread.getName}"
+        )
+      )
+    } yield ()
   }
 }
