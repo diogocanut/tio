@@ -5,6 +5,6 @@ lazy val root = project
   .settings(
     name := "tio",
     description := "Toy IO Monad",
-    version := "0.1.0",
+    version := "1.8.0",
     scalaVersion := "2.13.10"
   )
