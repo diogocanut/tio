@@ -2,3 +2,6 @@
 *.log
 .bsp/
 .idea/
+.bsp
+.idea
+target
