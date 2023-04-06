@@ -9,6 +9,8 @@ sealed trait TIO[+A] {
   def *>[B](that: TIO[B]): TIO[B] = flatMap(_ => that)
 
   def recover[B >: A](f: Throwable => TIO[B]): TIO[B] = TIO.Recover(this, f)
+
+  def fork(): TIO[Fiber[A]] = TIO.Fork(this)
 }
 
 object TIO {
@@ -24,6 +26,9 @@ object TIO {
 
   case class EffectAsync[A](asyncTask: AsyncTask[A]) extends TIO[A]
 
+  case class Fork[A](tio: TIO[A]) extends TIO[Fiber[A]]
+  case class Join[A](fiber: Fiber[A]) extends TIO[A]
+
   def succeed[A](a: A): TIO[A] = Effect(() => a)
   def effect[A](a: => A): TIO[A] = Effect(() => a)
   def fail[A](throwable: Throwable): TIO[A] = Fail(throwable)
@@ -37,4 +42,7 @@ object TIO {
     )
 
   def effectAsync[A](asyncTask: AsyncTask[A]): TIO[A] = EffectAsync(asyncTask)
+
+  def foreachPar[A, B](xs: Iterable[A])(f: A => TIO[B]): TIO[Iterable[B]] =
+    foreach(xs)(x => f(x).fork()).flatMap(fibers => foreach(fibers)(_.join()))
 }
